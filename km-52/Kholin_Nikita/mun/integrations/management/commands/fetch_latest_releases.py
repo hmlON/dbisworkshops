@@ -39,7 +39,7 @@ class Command(BaseCommand):
                 new_since = datetime.date.today() - datetime.timedelta(days=30)
 
                 cursor = connection.cursor()
-                cursor.execute("select * from table(releases.releases_from_time(:from_date))", {'from_date':new_since})
+                cursor.execute("select * from table(releases.releases_from_time(:from_date, :integration_id))", {'from_date':new_since, 'integration_id':integration.id})
                 new_releases = cursor.fetchall()
                 headers = ('title', 'date', 'cover_url', 'artist_name')
                 new_releases = [dict(zip(headers, release)) for release in new_releases]

@@ -17,7 +17,7 @@ def index(request):
         integration = request.user.integration_set.get(identifier='deezer')
 
     cursor = connection.cursor()
-    cursor.execute("select * from table(releases.latest_releases)")
+    cursor.execute("select * from table(releases.latest_releases(:integration_id))", {'integration_id': integration.id})
     headers = ('title', 'date', 'cover_url', 'artist_name')
     releases = cursor.fetchall()
     releases = [dict(zip(headers, release)) for release in releases]
@@ -67,7 +67,7 @@ def artist(request, name):
         integration = request.user.integration_set.get(identifier='deezer')
 
     cursor = connection.cursor()
-    cursor.execute("select * from table(releases.artist_releases(:name))", {'name':name})
+    cursor.execute("select * from table(releases.artist_releases(:name, :integration_id))", {'name':name, 'integration_id': integration.id})
     releases = cursor.fetchall()
     headers = ('title', 'date', 'cover_url', 'artist_name')
     releases = [dict(zip(headers, release)) for release in releases]
