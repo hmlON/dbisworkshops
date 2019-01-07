@@ -2,6 +2,8 @@ from django.contrib.auth.models import User
 from django.shortcuts import render
 from integrations.models import Artist, Release
 import requests
+from django.db import connection
+import cx_Oracle
 
 class DeezerFetcher():
     def fetch(user_id):
@@ -26,12 +28,18 @@ class DeezerFetcher():
 
         # save or update loaded artists
         for artist in artists:
-            find_by = {"integration": integration, "integration_artist_id": artist["id"]}
-            update = {"name": artist["name"]}
-            if Artist.objects.filter(**find_by).exists():
-                Artist.objects.filter(**find_by).update(**update)
-            else:
-                Artist.objects.create(**update, **find_by)
+            # find_by = {"integration": integration, "integration_artist_id": artist["id"]}
+            # update = {"name": artist["name"]}
+            cursor = connection.cursor()
+            cursor.callfunc(
+                'artists.create_or_update_artist',
+                cx_Oracle.STRING,
+                [integration.id, artist["id"], artist["name"]]
+            )
+            # if Artist.objects.filter(**find_by).exists():
+            #     Artist.objects.filter(**find_by).update(**update)
+            # else:
+            #     Artist.objects.create(**update, **find_by)
 
         artists = integration.artist_set.all()
 
@@ -52,14 +60,20 @@ class DeezerFetcher():
 
             # save or update releases
             for release in releases:
-                find_by = {"artist": artist, "integration_release_id": release["id"]}
-                update = {
-                    "title": release["title"],
-                    "cover_url": release["cover"],
-                    "date": release["release_date"],
-                    "release_type": release["type"],
-                }
-                if Release.objects.filter(**find_by).exists():
-                    Release.objects.filter(**find_by).update(**update)
-                else:
-                    Release.objects.create(**update, **find_by)
+                # find_by = {"artist": artist, "integration_release_id": release["id"]}
+                # update = {
+                #     "title": release["title"],
+                #     "cover_url": release["cover"],
+                #     "date": release["release_date"],
+                #     "release_type": release["type"],
+                # }
+                cursor = connection.cursor()
+                cursor.callfunc(
+                    'releases.create_or_update_release',
+                    cx_Oracle.STRING,
+                    [artist.id, release["id"], release["title"], release["cover"], release["release_date"], release["type"]]
+                )
+                # if Release.objects.filter(**find_by).exists():
+                #     Release.objects.filter(**find_by).update(**update)
+                # else:
+                #     Release.objects.create(**update, **find_by)

@@ -7,6 +7,8 @@ from django.core.mail import send_mail
 import datetime
 import os
 import requests
+from django.db import connection
+import cx_Oracle
 
 class Command(BaseCommand):
     help = 'Fetches latest releases'
@@ -23,7 +25,7 @@ class Command(BaseCommand):
                 SpotifyFetcher.fetch(user.id)
             elif user.integration_set.filter(identifier='deezer').exists():
                 integration = user.integration_set.get(identifier='deezer')
-                DeezerFetcher.fetch(user.id)
+                # DeezerFetcher.fetch(user.id)
 
             if not integration:
               continue
@@ -33,20 +35,26 @@ class Command(BaseCommand):
 
             if user.notification_set.filter(channel='email', enabled=True).exists():
                 notification = user.notification_set.get(channel='email')
-                new_since = notification.last_sent_at
-                # new_since = datetime.date.today() - datetime.timedelta(days=7)
-                new_releases = Release.objects.filter(
-                    artist__integration_id=integration.id,
-                    date__gte=new_since,
-                    created_at__gte=new_since,
-                ).order_by('-date')
+                new_since = notification.last_sent_at.date()
+                new_since = datetime.date.today() - datetime.timedelta(days=30)
+
+                cursor = connection.cursor()
+                cursor.execute("select * from table(releases.releases_from_time(:from_date))", {'from_date':new_since})
+                new_releases = cursor.fetchall()
+                headers = ('title', 'date', 'cover_url', 'artist_name')
+                new_releases = [dict(zip(headers, release)) for release in new_releases]
+                # new_releases = Release.objects.filter(
+                #     artist__integration_id=integration.id,
+                #     date__gte=new_since,
+                #     created_at__gte=new_since,
+                # ).order_by('-date')
 
 
                 # send an email
-                if new_releases.exists():
+                if len(new_releases) > 0:
                     self.stdout.write(self.style.SUCCESS(f'sending an email for {user.email} '))
 
-                    releases_text = [f'{release.date}: {release.artist.name} - {release.title}' for release in new_releases]
+                    releases_text = [f"{release['date']}: {release['artist_name']} - {release['title']}" for release in new_releases]
                     intro_text = 'Here are latest music releases that you have not seen before:'
                     email_text = '\n'.join([intro_text] + releases_text)
 
@@ -67,18 +75,19 @@ class Command(BaseCommand):
             # send a telegram message
             if user.notification_set.filter(channel='telegram', enabled=True).exists():
                 notification = user.notification_set.get(channel='telegram')
-                new_since = notification.last_sent_at
+                new_since = notification.last_sent_at.date()
                 # new_since = datetime.date.today() - datetime.timedelta(days=7)
-                new_releases = Release.objects.filter(
-                    artist__integration_id=integration.id,
-                    date__gte=new_since,
-                    created_at__gte=new_since,
-                ).order_by('-date')
+                
+                cursor = connection.cursor()
+                cursor.execute("select * from table(releases.releases_from_time(:from_date))", {'from_date':new_since})
+                new_releases = cursor.fetchall()
+                headers = ('title', 'date', 'cover_url', 'artist_name')
+                new_releases = [dict(zip(headers, release)) for release in new_releases]
 
-                if new_releases.exists():
+                if len(new_releases) > 0:
                     self.stdout.write(self.style.SUCCESS(f'sending a telegram message for {notification.channel_id} '))
 
-                    releases_text = [f'{release.date}: {release.artist.name} - {release.title}' for release in new_releases]
+                    releases_text = [f"{release['date']}: {release['artist_name']} - {release['title']}" for release in new_releases]
                     intro_text = 'Here are latest music releases that you have not seen before:'
                     text = '\n'.join([intro_text] + releases_text)
 

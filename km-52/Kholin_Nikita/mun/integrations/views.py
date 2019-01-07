@@ -3,13 +3,26 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.admin.views.decorators import staff_member_required
 from integrations.models import Release
 from notifications.forms import EmailNotificationForm, TelegramNotificationForm
+from django.db import connection
+import cx_Oracle
 
 @login_required
 def index(request):
     user_id = request.user.id
 
-    integration = request.user.integration_set.get(identifier='spotify')
-    releases = Release.objects.filter(artist__integration_id=integration.id).order_by('-date')[:200]
+    integration = None
+    if request.user.integration_set.filter(identifier='spotify').exists():
+        integration = request.user.integration_set.get(identifier='spotify')
+    elif request.user.integration_set.filter(identifier='deezer').exists():
+        integration = request.user.integration_set.get(identifier='deezer')
+
+    cursor = connection.cursor()
+    cursor.execute("select * from table(releases.latest_releases)")
+    headers = ('title', 'date', 'cover_url', 'artist_name')
+    releases = cursor.fetchall()
+    releases = [dict(zip(headers, release)) for release in releases]
+
+    # releases = Release.objects.filter(artist__integration_id=integration.id).order_by('-date')[:200]
     context = {'user': request.user, 'releases': releases}
     return render(request, 'releases/index.html', context)
 
@@ -33,6 +46,7 @@ def settings(request):
         enabled = telegram_notification.enabled
         telegram_notification_form_data = {
             'enabled': enabled,
+            'channel_id': telegram_notification.channel_id,
             'notification_id': telegram_notification.id,
         }
         telegram_notification_form = TelegramNotificationForm(telegram_notification_form_data)
@@ -46,11 +60,22 @@ def settings(request):
 
 @login_required
 def artist(request, name):
-    integration = request.user.integration_set.get(identifier='spotify')
-    artist = integration.artist_set.get(name__iexact=name)
-    releases = artist.release_set.all().order_by('-date')
+    integration = None
+    if request.user.integration_set.filter(identifier='spotify').exists():
+        integration = request.user.integration_set.get(identifier='spotify')
+    elif request.user.integration_set.filter(identifier='deezer').exists():
+        integration = request.user.integration_set.get(identifier='deezer')
 
-    context = {'artist': artist, 'releases': releases}
+    cursor = connection.cursor()
+    cursor.execute("select * from table(releases.artist_releases(:name))", {'name':name})
+    releases = cursor.fetchall()
+    headers = ('title', 'date', 'cover_url', 'artist_name')
+    releases = [dict(zip(headers, release)) for release in releases]
+    # artist = integration.artist_set.get(name__iexact=name)
+    # releases = artist.release_set.all().order_by('-date')
+    artist_name = releases[0]['artist_name']
+
+    context = {'artist_name': artist_name, 'releases': releases}
     return render(request, 'artists/show.html', context)
 
 @staff_member_required

@@ -7,4 +7,5 @@ class EmailNotificationForm(forms.Form):
 
 class TelegramNotificationForm(forms.Form):
     enabled = forms.BooleanField(required=False)
+    channel_id = forms.CharField(widget=forms.HiddenInput(), required=False)
     notification_id = forms.CharField(widget=forms.HiddenInput(), required=True)

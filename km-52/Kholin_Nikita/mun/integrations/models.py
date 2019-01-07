@@ -10,6 +10,9 @@ class Integration(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ('user', 'identifier',)
+
     def __str__(self):
         return f"{self.identifier} ({self.id})"
 
@@ -20,6 +23,9 @@ class Artist(models.Model):
     name = models.CharField(max_length=256)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('integration', 'integration_artist_id',)
 
     def __str__(self):
         return f"{self.name} ({self.id})"
@@ -33,6 +39,9 @@ class Release(models.Model):
     release_type = models.CharField(max_length=256)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('artist', 'integration_release_id',)
 
     def __str__(self):
         return f"{self.title} ({self.id})"

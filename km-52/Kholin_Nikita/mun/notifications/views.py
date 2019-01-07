@@ -12,12 +12,16 @@ import cx_Oracle
 
 @login_required
 def create(request):
+    # notification, _created = request.user.notification_set.get_or_create(
+    #   channel='telegram',
+    #   defaults={'connect_token': token_urlsafe(8)}
+    # )
     connect_token = token_urlsafe(8)
     cursor = connection.cursor()
     cursor.callfunc(
         'notifications.create_notification',
         cx_Oracle.STRING,
-        [2, 'telegram', token_urlsafe(8)]
+        [request.user.id, 'telegram', token_urlsafe(8)]
     )
 
     bot_url = 'https://www.telegram.me/music_notification_bot'
@@ -36,8 +40,14 @@ def callback(request):
 
     try:
         notification = Notification.objects.get(channel='telegram', connect_token=token)
-        notification.channel_id = chat_id
-        notification.save()
+        cursor = connection.cursor()
+        cursor.callfunc(
+            'notifications.update_notification',
+            cx_Oracle.STRING,
+            [notification_id, notification.enabled, chat_id]
+        )
+        # notification.channel_id = chat_id
+        # notification.save()
 
         text = "Welcome to the MuN"
         send_message_url = f'https://api.telegram.org/bot{bot_key}/sendMessage?chat_id={chat_id}&text={text}'
@@ -54,9 +64,14 @@ def callback(request):
 @login_required
 def notification_update(request):
     notification_id = request.POST.get('notification_id')
-    notification = Notification.objects.get(id=notification_id)
-    notification.enabled = bool(request.POST.get('enabled'))
-    if request.POST.get('channel_id'):
-        notification.channel_id = request.POST.get('channel_id')
-    notification.save()
+    cursor = connection.cursor()
+    cursor.callfunc(
+        'notifications.update_notification',
+        cx_Oracle.STRING,
+        [notification_id, int(bool(request.POST.get('enabled'))), request.POST.get('channel_id')]
+    )
+    # notification = Notification.objects.get(id=notification_id)
+    # notification.enabled = bool(request.POST.get('enabled'))
+    # notification.channel_id = request.POST.get('channel_id')
+    # notification.save()
     return redirect('/settings')

@@ -5,6 +5,8 @@ import datetime
 import os
 import requests
 import time
+from django.db import connection
+import cx_Oracle
 
 class SpotifyFetcher():
     def fetch(user_id):
@@ -41,12 +43,18 @@ class SpotifyFetcher():
 
         # save or update loaded artists
         for artist in artists:
-            find_by = {"integration": integration, "integration_artist_id": artist["id"]}
-            update = {"name": artist["name"]}
-            if Artist.objects.filter(**find_by).exists():
-                Artist.objects.filter(**find_by).update(**update)
-            else:
-                Artist.objects.create(**update, **find_by)
+            # find_by = {"integration": integration, "integration_artist_id": artist["id"]}
+            # update = {"name": artist["name"]}
+            cursor = connection.cursor()
+            cursor.callfunc(
+                'artists.create_or_update_artist',
+                cx_Oracle.STRING,
+                [integration.id, artist["id"], artist["name"]]
+            )
+            # if Artist.objects.filter(**find_by).exists():
+            #     Artist.objects.filter(**find_by).update(**update)
+            # else:
+            #     Artist.objects.create(**update, **find_by)
 
         artists = integration.artist_set.all()
 
@@ -70,7 +78,7 @@ class SpotifyFetcher():
 
             # save or update releases
             for release in releases:
-                find_by = {"artist": artist, "integration_release_id": release["id"]}
+                # find_by = {"artist": artist, "integration_release_id": release["id"]}
 
                 release_date = release["release_date"]
                 if release_date == '0000':
@@ -86,13 +94,19 @@ class SpotifyFetcher():
                 else:
                     cover_url = ''
 
-                update = {
-                    "title": release["name"],
-                    "cover_url": cover_url,
-                    "date": release_date,
-                    "release_type": release["album_type"],
-                }
-                if Release.objects.filter(**find_by).exists():
-                    Release.objects.filter(**find_by).update(**update)
-                else:
-                    Release.objects.create(**update, **find_by)
+                # update = {
+                #     "title": release["name"],
+                #     "cover_url": cover_url,
+                #     "date": release_date,
+                #     "release_type": release["album_type"],
+                # }
+                cursor = connection.cursor()
+                cursor.callfunc(
+                    'releases.create_or_update_release',
+                    cx_Oracle.STRING,
+                    [artist.id, release["id"], release["name"], cover_url, release_date, release["album_type"]]
+                )
+                # if Release.objects.filter(**find_by).exists():
+                #     Release.objects.filter(**find_by).update(**update)
+                # else:
+                #     Release.objects.create(**update, **find_by)
