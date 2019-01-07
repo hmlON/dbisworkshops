@@ -87,10 +87,17 @@ def admin_dashboard(request):
     import matplotlib.pyplot as plt
     import mpld3
 
-    total_users_count = User.objects.count()
+    # total_users_count = User.objects.count()
+    cursor = connection.cursor()
+    total_users_count = int(cursor.callfunc('users_pack.total_users', cx_Oracle.NUMBER))
 
-    total_integrations_count = Integration.objects.count()
-    integrations_by_identifier = Integration.objects.values('identifier').annotate(count=Count('identifier'))
+    # total_integrations_count = Integration.objects.count()
+    total_integrations_count = int(cursor.callfunc('integrations.total_integrations', cx_Oracle.NUMBER))
+    cursor.execute("select * from table(integrations.integrations_by_identifier)")
+    integrations_by_identifier = cursor.fetchall()
+    headers = ('count', 'identifier')
+    integrations_by_identifier = [dict(zip(headers, entity)) for entity in integrations_by_identifier]
+    # integrations_by_identifier = Integration.objects.values('identifier').annotate(count=Count('identifier'))
 
     x = [integration['count'] for integration in integrations_by_identifier]
     labels = [integration['identifier'] for integration in integrations_by_identifier]
@@ -100,8 +107,13 @@ def admin_dashboard(request):
     plt.xticks(positions, labels)
     integrations_by_identifier_chart = mpld3.fig_to_html(fig)
 
-    total_notifications_count = Notification.objects.count()
-    notifications_by_identifier = Notification.objects.values('channel').annotate(count=Count('channel'))
+    # total_notifications_count = Notification.objects.count()
+    total_notifications_count = int(cursor.callfunc('notifications.total_notifications', cx_Oracle.NUMBER))
+    cursor.execute("select * from table(notifications.notifications_by_identifier)")
+    notifications_by_identifier = cursor.fetchall()
+    headers = ('count', 'channel')
+    notifications_by_identifier = [dict(zip(headers, entity)) for entity in notifications_by_identifier]
+    # notifications_by_identifier = Notification.objects.values('channel').annotate(count=Count('channel'))
 
     x = [notification['count'] for notification in notifications_by_identifier]
     labels = [notification['channel'] for notification in notifications_by_identifier]
@@ -117,14 +129,5 @@ def admin_dashboard(request):
         'integrations_by_identifier_chart': integrations_by_identifier_chart,
         'total_notifications_count': total_notifications_count,
         'notifications_by_identifier_chart': notifications_by_identifier_chart,
-        # 'fig': g,
     }
     return render(request, 'admin/dashboard.html', context)
-
-    # import matplotlib.pyplot as plt, mpld3
-    # from django.http import HttpResponse
-
-    # fig = plt.figure()
-    # plt.plot([1,2,3,4])
-    # g = mpld3.fig_to_html(fig)
-    # return HttpResponse(g)

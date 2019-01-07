@@ -104,8 +104,9 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                      integrations_release.cover_url,
                      INTEGRATIONS_ARTIST.name
               from integrations_release join INTEGRATIONS_ARTIST on INTEGRATIONS_RELEASE.ARTIST_ID = INTEGRATIONS_ARTIST.ID
-              where rownum < 101
-              order by integrations_release."DATE" desc;
+--               where rownum < 11
+              order by integrations_release."DATE" desc
+              FETCH FIRST 100 ROWS ONLY;
              -- FETCH FIRST 200 ROWS ONLY;
               BEGIN
                 FOR curr IN my_cur

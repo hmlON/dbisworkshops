@@ -10,6 +10,17 @@
         in_enabled       IN  NOTIFICATIONS_NOTIFICATION.enabled%TYPE,
         in_connect_token IN  NOTIFICATIONS_NOTIFICATION.connect_token%TYPE)
     RETURN STRING;
+
+    FUNCTION total_notifications
+    RETURN NUMBER;
+
+    TYPE row_notifications_by_identifier IS RECORD(
+        out_count   NOTIFICATIONS_NOTIFICATION.id%TYPE,
+        out_channel NOTIFICATIONS_NOTIFICATION.channel%TYPE
+    );
+    TYPE tbl_notifications_by_identifier IS TABLE OF row_notifications_by_identifier;
+    FUNCTION notifications_by_identifier
+    RETURN tbl_notifications_by_identifier pipelined;
 END notifications;
 /
 
@@ -58,5 +69,27 @@ CREATE OR REPLACE PACKAGE BODY notifications IS
         COMMIT;
         RETURN('success');
     END update_notification;
+
+    FUNCTION total_notifications
+    RETURN NUMBER IS
+        total NOTIFICATIONS_NOTIFICATION.id%TYPE;
+    BEGIN
+        select count(*) into total from NOTIFICATIONS_NOTIFICATION;
+        RETURN(total);
+    END total_notifications;
+
+    FUNCTION notifications_by_identifier
+    RETURN tbl_notifications_by_identifier PIPELINED
+    IS
+        CURSOR my_cur IS
+            select count(*), "CHANNEL" from NOTIFICATIONS_NOTIFICATION
+            group by "CHANNEL";
+    BEGIN
+        FOR curr IN my_cur
+        LOOP
+            PIPE ROW (curr);
+        END LOOP;
+    END notifications_by_identifier;
 END notifications;
 /
+

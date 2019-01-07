@@ -6,6 +6,9 @@
         in_refresh_token       IN INTEGRATIONS_INTEGRATION.refresh_token%TYPE,
         in_integration_user_id IN INTEGRATIONS_INTEGRATION.integration_user_id%TYPE)
     RETURN STRING;
+
+    FUNCTION total_integrations
+    RETURN NUMBER;
 END integrations;
 /
 
@@ -49,5 +52,13 @@ CREATE OR REPLACE PACKAGE BODY integrations IS
             COMMIT;
             RETURN('updated');
     END create_or_update_integration;
+
+    FUNCTION total_integrations
+    RETURN NUMBER IS
+        total AUTH_USER.id%TYPE;
+    BEGIN
+        select count(*) into total from INTEGRATIONS_INTEGRATION;
+        RETURN(total);
+    END total_integrations;
 END integrations;
 /
