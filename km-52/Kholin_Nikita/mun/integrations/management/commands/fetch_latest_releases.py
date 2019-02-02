@@ -25,7 +25,7 @@ class Command(BaseCommand):
                 SpotifyFetcher.fetch(user.id)
             elif user.integration_set.filter(identifier='deezer').exists():
                 integration = user.integration_set.get(identifier='deezer')
-                # DeezerFetcher.fetch(user.id)
+                DeezerFetcher.fetch(user.id)
 
             if not integration:
               continue
@@ -79,7 +79,7 @@ class Command(BaseCommand):
                 # new_since = datetime.date.today() - datetime.timedelta(days=7)
                 
                 cursor = connection.cursor()
-                cursor.execute("select * from table(releases.releases_from_time(:from_date))", {'from_date':new_since})
+                cursor.execute("select * from table(releases.releases_from_time(:from_date, :integration_id))", {'from_date':new_since, 'integration_id':integration.id})
                 new_releases = cursor.fetchall()
                 headers = ('title', 'date', 'cover_url', 'artist_name')
                 new_releases = [dict(zip(headers, release)) for release in new_releases]

@@ -17,15 +17,19 @@
 
     TYPE tbl_show_releases IS TABLE OF row_show_releases;
 
-    FUNCTION artist_releases (artist_name in INTEGRATIONS_ARTIST.NAME%TYPE)
+    FUNCTION artist_releases (
+        artist_name in INTEGRATIONS_ARTIST.NAME%TYPE,
+        in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
         RETURN tbl_show_releases
         PIPELINED;
 
-    FUNCTION latest_releases
+    FUNCTION latest_releases(in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
         RETURN tbl_show_releases
         PIPELINED;
 
-    FUNCTION releases_from_time(from_date in INTEGRATIONS_RELEASE."DATE"%TYPE)
+    FUNCTION releases_from_time(
+            from_date in INTEGRATIONS_RELEASE."DATE"%TYPE,
+            in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
         RETURN tbl_show_releases
         PIPELINED;
 END releases;
@@ -76,7 +80,9 @@ CREATE OR REPLACE PACKAGE BODY releases IS
             RETURN('updated');
     END create_or_update_release;
 
-    FUNCTION artist_releases (artist_name in INTEGRATIONS_ARTIST.NAME%TYPE)
+    FUNCTION artist_releases (
+        artist_name in INTEGRATIONS_ARTIST.NAME%TYPE,
+        in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
         RETURN tbl_show_releases
         PIPELINED
         IS
@@ -86,7 +92,8 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                        integrations_release.cover_url,
                        INTEGRATIONS_ARTIST.name
               from integrations_release join INTEGRATIONS_ARTIST on INTEGRATIONS_RELEASE.ARTIST_ID = INTEGRATIONS_ARTIST.ID
-                where lower(INTEGRATIONS_ARTIST.name) = lower(artist_name);
+                where lower(INTEGRATIONS_ARTIST.name) = lower(artist_name) AND INTEGRATIONS_ARTIST.integration_id = in_integration_id
+                order by integrations_release."DATE" desc;
                 BEGIN
                     FOR curr IN my_cur
                     LOOP
@@ -94,7 +101,7 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                     END LOOP;
         END artist_releases;
 
-      FUNCTION latest_releases
+      FUNCTION latest_releases(in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
           RETURN tbl_show_releases
           PIPELINED
           IS
@@ -104,7 +111,7 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                      integrations_release.cover_url,
                      INTEGRATIONS_ARTIST.name
               from integrations_release join INTEGRATIONS_ARTIST on INTEGRATIONS_RELEASE.ARTIST_ID = INTEGRATIONS_ARTIST.ID
---               where rownum < 11
+              where in_integration_id = INTEGRATIONS_ARTIST.integration_id
               order by integrations_release."DATE" desc
               FETCH FIRST 100 ROWS ONLY;
              -- FETCH FIRST 200 ROWS ONLY;
@@ -115,7 +122,9 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                 END LOOP;
         END latest_releases;
 
-      FUNCTION releases_from_time(from_date in INTEGRATIONS_RELEASE."DATE"%TYPE)
+      FUNCTION releases_from_time(
+              from_date in INTEGRATIONS_RELEASE."DATE"%TYPE,
+              in_integration_id in INTEGRATIONS_ARTIST.integration_id%type)
           RETURN tbl_show_releases
           PIPELINED
           IS
@@ -125,7 +134,8 @@ CREATE OR REPLACE PACKAGE BODY releases IS
                      integrations_release.cover_url,
                      INTEGRATIONS_ARTIST.name
               from integrations_release join INTEGRATIONS_ARTIST on INTEGRATIONS_RELEASE.ARTIST_ID = INTEGRATIONS_ARTIST.ID
-              where integrations_release."DATE" > from_date;
+              where integrations_release."DATE" > from_date AND in_integration_id = INTEGRATIONS_ARTIST.integration_id
+              order by integrations_release."DATE" desc;
               BEGIN
                 FOR curr IN my_cur
                 LOOP
